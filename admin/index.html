@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>MTT Admin — Bookings</title>
+<style>
+  :root{--navy:#0c2340;--navy-deep:#071526;--yellow:#ffc627;--paper:#f4f1ea;--ink:#1c2b3a;--muted:#66788c;--line:#e2dccf;--wa:#1da851;--red:#b3261e;--radius:14px}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--ink);background:var(--paper);line-height:1.5}
+  button,input,textarea{font:inherit}
+  [hidden]{display:none!important}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+  header{background:var(--navy);color:#fff;position:sticky;top:0;z-index:5}
+  header .wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:12px;padding-bottom:12px}
+  header h1{font-size:18px;flex:1;min-width:160px}
+  header h1 small{display:block;color:var(--yellow);font-size:12px;font-weight:600}
+  .btn{border:0;border-radius:999px;padding:9px 16px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;background:#fff;color:var(--navy);font-size:14px}
+  .btn.yellow{background:var(--yellow);color:var(--navy-deep)}
+  .btn.green{background:var(--wa);color:#fff}
+  .btn.red{background:#fff;color:var(--red);border:1.5px solid var(--red)}
+  .btn.ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.45)}
+  .btn.line{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+  .btn:disabled{opacity:.55;cursor:default}
+
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--navy)}
+  #login form{background:#fff;border-radius:var(--radius);padding:26px;width:100%;max-width:360px}
+  #login h1{font-size:21px;margin-bottom:4px}
+  #login p{color:var(--muted);font-size:14px;margin-bottom:16px}
+  #login input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+  #login .btn{width:100%;padding:12px;font-size:16px}
+  .err{color:var(--red);font-size:14px;margin-top:10px;min-height:20px}
+
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:18px 0}
+  .stat{background:#fff;border:1.5px solid var(--line);border-radius:var(--radius);padding:12px;text-align:left;cursor:pointer;color:var(--ink)}
+  .stat b{display:block;font-size:24px;line-height:1.1}
+  .stat span{font-size:12.5px;color:var(--muted);font-weight:600}
+  .stat.on{border-color:var(--navy);box-shadow:inset 0 0 0 1.5px var(--navy)}
+  .tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .tools input{flex:1;min-width:200px;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff}
+  .tools .updated{color:var(--muted);font-size:13px}
+
+  .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px;padding-bottom:20px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:8px}
+  .card .top{display:flex;align-items:center;gap:8px}
+  .card .ref{font-weight:800;font-size:14px;flex:1}
+  .chip{border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+  .chip.New{background:#fff3cd;color:#7a5700}
+  .chip.Confirmed{background:#d9f2e1;color:#14693a}
+  .chip.Completed{background:#e3e8ee;color:#3d4d5e}
+  .chip.Cancelled{background:#fdecea;color:var(--red)}
+  .card .route{font-weight:700;font-size:16px;overflow-wrap:anywhere}
+  .card .meta{color:var(--muted);font-size:13.5px;overflow-wrap:anywhere}
+  .card .meta a{color:var(--navy);font-weight:700}
+  .card textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;resize:vertical;min-height:38px}
+  .card .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
+  .empty{background:#fff;border:1px dashed var(--line);border-radius:var(--radius);padding:30px;text-align:center;color:var(--muted);grid-column:1/-1}
+
+  .bot{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:30px}
+  .bot h2{font-size:16px;margin-bottom:4px}
+  .bot p{color:var(--muted);font-size:14px;margin-bottom:10px}
+  .bot code{background:var(--paper);border-radius:6px;padding:1px 6px}
+  @media(max-width:640px){.stats{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <form id="loginForm">
+    <h1>MTT Admin</h1>
+    <p>Mithila Tour and Travels — bookings</p>
+    <input type="password" id="password" placeholder="Admin password" autocomplete="current-password" required>
+    <button class="btn yellow" type="submit" id="loginBtn">Sign in</button>
+    <div class="err" id="loginErr" role="alert"></div>
+  </form>
+</div>
+
+<div id="panel" hidden>
+  <header>
+    <div class="wrap">
+      <h1>Bookings<small>Mithila Tour and Travels</small></h1>
+      <button class="btn ghost" id="refresh" type="button">Refresh</button>
+      <button class="btn ghost" id="csv" type="button">Export CSV</button>
+      <button class="btn" id="logout" type="button">Sign out</button>
+    </div>
+  </header>
+  <div class="wrap">
+    <div class="stats" id="stats"></div>
+    <div class="tools">
+      <input type="search" id="search" placeholder="Search ref, phone, place…" autocomplete="off">
+      <span class="updated" id="updated"></span>
+    </div>
+    <div class="err" id="panelErr" role="alert"></div>
+    <div class="list" id="list"></div>
+    <div class="bot">
+      <h2>Telegram alerts</h2>
+      <p id="botStatus">Checking…</p>
+      <button class="btn line" id="botConnect" type="button" hidden>Connect Telegram bot</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STATUSES = ['New', 'Confirmed', 'Completed', 'Cancelled'];
+const ACTIONS = {
+  New: [['Confirm', 'Confirmed', 'green'], ['Cancel', 'Cancelled', 'red']],
+  Confirmed: [['Mark completed', 'Completed', 'green'], ['Cancel', 'Cancelled', 'red']],
+  Completed: [['Reopen', 'New', 'line']],
+  Cancelled: [['Reopen', 'New', 'line']],
+};
+const $ = (id) => document.getElementById(id);
+let bookings = [], filter = 'All', timer = null;
+
+const session = {
+  get(){ try{ return sessionStorage.getItem('mttAdmin'); }catch(e){ return this.memory || null; } },
+  set(token){ this.memory = token; try{ token ? sessionStorage.setItem('mttAdmin', token) : sessionStorage.removeItem('mttAdmin'); }catch(e){} },
+};
+
+// Booking fields come from the public form: always insert them as text, never as HTML.
+function h(tag, props, ...children){
+  const el = document.createElement(tag);
+  Object.entries(props || {}).forEach(([k, v]) => { if(k === 'class') el.className = v; else if(k in el) el[k] = v; else el.setAttribute(k, v); });
+  children.forEach((c) => { if(c !== null && c !== undefined && c !== '') el.append(c); });
+  return el;
+}
+
+async function api(path, options){
+  const res = await fetch(path, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (session.get() || '') },
+  });
+  if(res.status === 401){ signOut(); throw new Error('Session ended — sign in again.'); }
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) throw new Error(data.error || 'Request failed (' + res.status + ')');
+  return data;
+}
+
+function show(signedIn){
+  $('login').hidden = signedIn;
+  $('panel').hidden = !signedIn;
+}
+function signOut(){
+  session.set(null);
+  clearInterval(timer);
+  show(false);
+}
+
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('loginErr').textContent = '';
+  $('loginBtn').disabled = true;
+  try{
+    const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('password').value }) });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(res.status === 429 ? 'Too many tries — wait a minute.' : (data.error || 'Could not sign in'));
+    session.set(data.token);
+    $('password').value = '';
+    start();
+  }catch(err){ $('loginErr').textContent = err.message; }
+  $('loginBtn').disabled = false;
+});
+$('logout').addEventListener('click', signOut);
+
+function when(iso){
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+}
+function customerMessage(b){
+  const trip = b.pickup + ' to ' + b.drop + ' on ' + b.date + ' at ' + b.time;
+  if(b.status === 'Cancelled') return 'Hello, this is Mithila Tour and Travels. Your cab booking ' + b.ref + ' (' + trip + ') has been cancelled.';
+  if(b.status === 'New') return 'Hello, this is Mithila Tour and Travels about your cab booking ' + b.ref + ' (' + trip + ').';
+  return 'Hello, this is Mithila Tour and Travels. Your ' + b.cab + ' cab booking ' + b.ref + ' is confirmed: ' + trip + '.';
+}
+
+function matches(b){
+  if(filter !== 'All' && b.status !== filter) return false;
+  const q = $('search').value.trim().toLowerCase();
+  return !q || [b.ref, b.phone, b.pickup, b.drop, b.cab, b.note].join(' ').toLowerCase().includes(q);
+}
+
+function card(b){
+  const note = h('textarea', { rows: 1, placeholder: 'Note — driver, fare, anything', value: b.note || '', maxLength: 500 });
+  note.setAttribute('aria-label', 'Note for ' + b.ref);
+  note.addEventListener('change', () => save(b.ref, { note: note.value }));
+  const acts = h('div', { class: 'acts' });
+  ACTIONS[b.status].forEach(([label, status, style]) => {
+    const btn = h('button', { class: 'btn ' + style, type: 'button' }, label);
+    btn.addEventListener('click', () => { btn.disabled = true; save(b.ref, { status }); });
+    acts.append(btn);
+  });
+  acts.append(h('a', { class: 'btn line', href: 'https://wa.me/91' + encodeURIComponent(b.phone) + '?text=' + encodeURIComponent(customerMessage(b)), target: '_blank', rel: 'noopener' }, 'WhatsApp'));
+  const safeRoute = String(b.route || '').startsWith('https://www.google.com/maps/dir/');
+  return h('div', { class: 'card' },
+    h('div', { class: 'top' }, h('span', { class: 'ref' }, b.ref), h('span', { class: 'chip ' + b.status }, b.status)),
+    h('div', { class: 'route' }, b.pickup + ' → ' + b.drop),
+    h('div', { class: 'meta' }, b.trip + ' · ' + b.cab + ' · ' + b.date + ' at ' + b.time + (b.km ? ' · about ' + b.km + ' km' : '')),
+    h('div', { class: 'meta' }, h('a', { href: 'tel:+91' + encodeURIComponent(b.phone) }, '+91 ' + b.phone), ' · booked ' + when(b.createdAt),
+      safeRoute ? ' · ' : '', safeRoute ? h('a', { href: b.route, target: '_blank', rel: 'noopener' }, 'Route map') : ''),
+    note, acts);
+}
+
+function render(){
+  const counts = { All: bookings.length };
+  STATUSES.forEach((s) => { counts[s] = bookings.filter((b) => b.status === s).length; });
+  $('stats').replaceChildren(...['All'].concat(STATUSES).map((s) => {
+    const el = h('button', { class: 'stat' + (filter === s ? ' on' : ''), type: 'button' }, h('b', {}, String(counts[s])), h('span', {}, s));
+    el.addEventListener('click', () => { filter = s; render(); });
+    return el;
+  }));
+  const shown = bookings.filter(matches);
+  $('list').replaceChildren(...(shown.length ? shown.map(card) : [h('div', { class: 'empty' }, bookings.length ? 'No bookings match.' : 'No bookings yet.')]));
+}
+
+async function load(){
+  try{
+    bookings = (await api('/api/bookings')).bookings;
+    $('panelErr').textContent = '';
+    $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+    render();
+  }catch(err){ $('panelErr').textContent = err.message; }
+}
+async function save(ref, change){
+  try{
+    const updated = (await api('/api/bookings/' + encodeURIComponent(ref), { method: 'PATCH', body: JSON.stringify(change) })).booking;
+    bookings = bookings.map((b) => (b.ref === ref ? updated : b));
+    $('panelErr').textContent = '';
+  }catch(err){ $('panelErr').textContent = err.message; }
+  render();
+}
+
+function csvCell(value){
+  let s = String(value === undefined || value === null ? '' : value);
+  if(/^[=+\-@]/.test(s)) s = "'" + s;
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+$('csv').addEventListener('click', () => {
+  const cols = ['ref', 'status', 'createdAt', 'trip', 'pickup', 'drop', 'cab', 'date', 'time', 'phone', 'km', 'note'];
+  const rows = [cols.join(',')].concat(bookings.filter(matches).map((b) => cols.map((c) => csvCell(b[c])).join(',')));
+  const link = h('a', { href: URL.createObjectURL(new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv' })), download: 'mtt-bookings.csv' });
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+
+async function botStatus(){
+  try{
+    const s = await api('/api/telegram/setup');
+    $('botConnect').hidden = !s.configured;
+    $('botStatus').textContent = !s.configured
+      ? 'Not set up: add the TELEGRAM_BOT_TOKEN environment variable in Netlify and redeploy.'
+      : s.chats
+        ? 'New bookings are sent to ' + s.chats + ' Telegram chat' + (s.chats > 1 ? 's' : '') + '.'
+        : 'Bot token found. Press Connect, then open the bot in Telegram and send /start followed by the admin password.';
+  }catch(err){ $('botStatus').textContent = err.message; }
+}
+$('botConnect').addEventListener('click', async () => {
+  $('botConnect').disabled = true;
+  try{
+    const r = await api('/api/telegram/setup', { method: 'POST' });
+    $('botStatus').textContent = 'Connected to @' + r.bot + '. Open it in Telegram and send /start followed by the admin password to receive bookings there.';
+  }catch(err){ $('botStatus').textContent = err.message; }
+  $('botConnect').disabled = false;
+});
+
+$('refresh').addEventListener('click', load);
+$('search').addEventListener('input', render);
+
+function start(){
+  show(true);
+  load();
+  botStatus();
+  clearInterval(timer);
+  // Skip the refresh while a note is being typed, so the text is not replaced mid-edit.
+  timer = setInterval(() => { if(!document.hidden && document.activeElement.tagName !== 'TEXTAREA') load(); }, 30000);
+}
+if(session.get()) start(); else show(false);
+</script>
+</body>
+</html>

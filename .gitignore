@@ -1,5 +1,5 @@
 node_modules/
 dist/
-.test-dist/
+.netlify/
 test-results/
 playwright-report/

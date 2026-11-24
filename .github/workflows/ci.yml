@@ -23,18 +23,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run build
       - run: npm test
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: playwright-report/
-          retention-days: 7
-      - uses: actions/upload-artifact@v4
-        with:
-          name: site
-          path: dist/
           retention-days: 7
 
   deploy:
@@ -45,13 +39,16 @@ jobs:
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          name: site
-          path: dist
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # netlify.toml tells the CLI to build the site and bundle the functions
       - name: Deploy to Netlify
         if: env.NETLIFY_AUTH_TOKEN != '' && env.NETLIFY_SITE_ID != ''
-        run: npx --yes netlify-cli deploy --prod --dir=dist
+        run: npx --yes netlify-cli deploy --prod
       - name: Deploy skipped
         if: env.NETLIFY_AUTH_TOKEN == '' || env.NETLIFY_SITE_ID == ''
         run: echo "::warning::Not deployed - add the NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID repository secrets."

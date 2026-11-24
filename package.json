@@ -5,9 +5,12 @@
   "description": "Cab booking site for Mithila Tour and Travels, Muzaffarpur, Bihar",
   "scripts": {
     "build": "node scripts/build.js",
-    "test": "playwright test"
+    "test": "npm run build && node --test tests/api.test.mjs && playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.1"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.11"
   }
 }

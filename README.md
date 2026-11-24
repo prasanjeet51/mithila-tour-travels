@@ -2,33 +2,50 @@
 
 [![Test and deploy](https://github.com/prasanjeet51/mithila-tour-travels/actions/workflows/ci.yml/badge.svg)](https://github.com/prasanjeet51/mithila-tour-travels/actions/workflows/ci.yml)
 
-A booking site for Mithila Tour and Travels, a cab service in Muzaffarpur, Bihar.
+A booking site, admin panel and Telegram bot for Mithila Tour and Travels, a cab service in Muzaffarpur, Bihar.
 
-**Live site:** https://warm-pithivier-b7a79e.netlify.app/
+**Live site:** https://mttbihar.com
 
 ## What it does
 
+**For customers**
+
 - 8 popular city-pair routes across Bihar, plus airport pickup (Patna, Gaya, Darbhanga)
-- Cab types: Mini, Sedan, SUV, Traveller
-- One Way, Round Trip, or Local
+- Cab types: Mini, Sedan, SUV, Traveller; One Way, Round Trip, or Local
 - Typo-tolerant place search with a Google Maps route preview and distance
-- Booking goes straight to WhatsApp — fares are confirmed there, no prices on the site
-- Every booking is also saved as a row in the owner's Google Sheet
+- Booking goes straight to WhatsApp with a booking reference — fares are confirmed there
 
-## Automation
+**For the owner**
 
-| What | How |
+- Every booking is saved on the server the moment it is made
+- **Admin panel** at `/admin/`: password sign-in, bookings by status, search, notes, one-tap Confirm / Complete /
+  Cancel, a ready-written WhatsApp message to the customer, CSV export
+- **Telegram bot**: each new booking arrives in Telegram with Confirm and Cancel buttons that update the admin
+  panel; `/pending` lists bookings still waiting
+
+## How it works
+
+```
+booking form ──> WhatsApp message to the owner
+             └─> POST /api/bookings ──> Netlify Function ──> Netlify Blobs (storage)
+                                                        └──> Telegram bot alert
+admin panel  ──> /api/bookings (signed session) ────────────┘
+Telegram buttons ──> /api/telegram webhook ──> booking status updated
+
+git push ──> GitHub Actions: build ──> API tests + browser tests ──> deploy to Netlify
+```
+
+| Part | Where |
 | --- | --- |
-| Build | `scripts/build.js` turns `template.html` into a single self-contained `dist/index.html` |
-| Tests | Playwright runs the booking flow in desktop and mobile Chrome, with the network mocked |
-| CI/CD | GitHub Actions builds and tests every push and pull request; a green `main` is deployed to Netlify |
-| Booking log | The page posts each booking to a Google Apps Script web app, which appends it to a Google Sheet |
+| Site | `template.html`, built into one self-contained page by `scripts/build.js` |
+| Admin panel | `admin/index.html` — no framework, renders all customer text as text, never HTML |
+| API and bot | `netlify/lib/app.mjs`, exposed by the functions in `netlify/functions/` |
+| Tests | `tests/api.test.mjs` (API and bot, Node test runner) and `tests/*.spec.js` (Playwright, desktop and mobile) |
+| Pipeline | `.github/workflows/ci.yml` |
 
-```
-push to main -> build -> Playwright tests -> deploy to Netlify
-booking form -> WhatsApp message to the owner
-             -> Google Apps Script -> Google Sheet row (+ optional email)
-```
+Security: the admin password lives only in a Netlify environment variable, sessions are HMAC-signed and expire
+after 12 hours, sign-in is rate limited, the Telegram webhook is checked against a secret, and only chats that
+sent the admin password can receive bookings or press the buttons.
 
 ## Run it locally
 
@@ -37,43 +54,35 @@ Needs Node.js 22 or newer.
 ```
 npm install
 npx playwright install chromium
-npm run build     # writes dist/index.html
-npm test
+npm test                  # build + API tests + browser tests
+node tests/server.mjs     # the site and admin panel on http://localhost:4173 (password: test-password)
 ```
 
-Open `dist/index.html` in a browser to see the site.
-
-## Files
-
-- `template.html` — the page source; edit this, not `dist/`
-- `assets/` — logo, cab photos and route photos
-- `site.config.json` — the booking log URL
-- `scripts/build.js` — the build
-- `tests/` — Playwright tests
-- `apps-script/Code.gs` — the Google Sheet booking log
-- `.github/workflows/ci.yml` — the pipeline
+The local server keeps bookings in memory and never contacts Telegram.
 
 ## One-time setup
 
-### Auto-deploy to Netlify
+### 1. Auto-deploy
 
-1. In Netlify: **User settings > Applications > Personal access tokens > New access token**. Copy it.
-2. In Netlify: open the site, **Site configuration > General > Site details**. Copy the **Site ID**.
-3. In the GitHub repository: **Settings > Secrets and variables > Actions > New repository secret**. Add
-   `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID`.
+Add two repository secrets on GitHub (**Settings > Secrets and variables > Actions**):
+`NETLIFY_AUTH_TOKEN` (Netlify **User settings > Applications > Personal access tokens**) and
+`NETLIFY_SITE_ID` (Netlify site **Site configuration > General > Site details**).
 
-Until both secrets exist, the pipeline still builds and tests but skips the deploy.
+### 2. Admin password
 
-### Booking log in Google Sheets
+In Netlify, open the site, **Site configuration > Environment variables > Add a variable**:
 
-1. Create a new Google Sheet.
-2. **Extensions > Apps Script**. Replace the code with `apps-script/Code.gs` and save.
-3. **Deploy > New deployment > Web app**. Set **Execute as: Me** and **Who has access: Anyone**. Authorise it and
-   copy the web app URL.
-4. Paste the URL into `site.config.json` as `bookingEndpoint`, then commit and push.
+- `ADMIN_PASSWORD` — a long password of your own. Mark it as secret.
 
-Bookings then appear in a `Bookings` tab. To also get an email for each one, set `NOTIFY_EMAIL` in the script and
-deploy a new version.
+Then redeploy (re-run the latest GitHub Actions run, or push a commit). Sign in at `/admin/`.
+
+### 3. Telegram bot
+
+1. In Telegram, open **@BotFather**, send `/newbot` and follow the steps. Copy the bot token it gives you.
+2. In Netlify, add the environment variable `TELEGRAM_BOT_TOKEN` with that token (mark it as secret) and redeploy.
+3. Sign in to `/admin/` and press **Connect Telegram bot**.
+4. Open your bot in Telegram and send `/start` followed by the admin password, for example `/start my-password`.
+   The bot deletes that message and confirms. Anyone else who should get bookings does the same.
 
 ## Built by
 
