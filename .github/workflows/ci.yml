@@ -45,10 +45,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # netlify.toml tells the CLI to build the site and bundle the functions
+      - run: npm run build
+      # Uploads dist/ and bundles the functions named in netlify.toml
       - name: Deploy to Netlify
         if: env.NETLIFY_AUTH_TOKEN != '' && env.NETLIFY_SITE_ID != ''
-        run: npx --yes netlify-cli deploy --prod
+        run: npx --yes netlify-cli deploy --prod --no-build --dir=dist
       - name: Deploy skipped
         if: env.NETLIFY_AUTH_TOKEN == '' || env.NETLIFY_SITE_ID == ''
         run: echo "::warning::Not deployed - add the NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID repository secrets."
